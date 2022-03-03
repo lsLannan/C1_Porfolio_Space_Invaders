@@ -15,8 +15,10 @@ pygame.display.set_caption("Space Invaders Project")
 
 
 # frtyh
-# creating instances of a ship that all have their own coord and health
+# creating instances of a ship that all have their own coord and hp
 class Ship:
+    COOLDOWN = 30
+
     def __init__(self, x, y, hp=100):
         self.x = x
         self.y = y
@@ -29,6 +31,36 @@ class Ship:
     def draw(self, window):
         # pygame.draw.rect(window, (255,0,0), (self.x, self.y, 50, 50))
         window.blit(self.ship_img, (self.x, self.y))
+        for laser in self.lasers:
+            laser.draw(window)
+
+    def move_laser(self, vel, objs):
+        self.cooldown()
+        for laser in self.lasers:
+            laser.move(vel)
+            if laser.off_screen(HEIGHT):
+                self.lasers.remove(laser)
+            elif laser.collision(obj):
+                obj.hp -= 10 # causes damage if hit
+                self.lasers.remove(laser) # then remove laser after hit
+
+
+
+
+
+    def cooldown(self):
+        if self.cooldown_coutner >= self.COOLDOWN:
+            self.cooldown_coutner = 0
+        elif self.cooldown_counter > 0:
+            self.cooldown_counter += 1
+
+
+    # shoot time
+    def shoot(self):
+        if self.cooldown_counter == 0:
+            laser = Laser(x, y, self.laser_img)
+            self.laser.append(laser)
+            self.cooldown_counter = 1
 
     def get_width(self):
         return self.ship_img.get_width()
@@ -38,12 +70,24 @@ class Ship:
 
 
 class Player(Ship):
-    def __init__(self, x, y, health = 100):
-        super().__init__(x, y, health)
+    def __init__(self, x, y, hp = 100):
+        super().__init__(x, y, hp)
         self.ship_img = spaceship_yellow
         self.laser = laser_yellow
         self.mask = pygame.mask.from_surface(self.ship_img)  # collisin detection
-        self.max_health = health
+        self.max_hp = hp
+
+        def move_laser(self, vel, objs):
+            self.cooldown()
+            for laser in self.lasers:
+                laser.move(vel)
+                if laser.off_screen(HEIGHT):
+                    self.lasers.remove(laser)
+                else:
+                    for obj in objs:
+                        if laser.collision(obj):
+                        objs.remove(obj)
+                        self.lasers.remove(laser)
 
 
 # changed os.path.imag (?) to direct path for assests
@@ -66,6 +110,27 @@ laser_yellow = pygame.image.load("C2_Coursework_Space_Invaders/venv/assets/laser
 # background
 bg = pygame.transform.scale(pygame.image.load("C2_Coursework_Space_Invaders/venv/assets/background_black.png"),
                             (WIDTH, HEIGHT))
+
+class Laser:
+    def __init__(self, x, y, img):
+        self.x = x
+        self.y = y
+        self.img = img
+        self.mask = pygame.mask.from_surface(self.img)
+
+    def draw(self, window):
+        window.blit(self.img, (self.x,self.y))
+
+    def move(self, vel):
+        self.y += vel
+
+    def off_screen(self, height):
+        return self.y <= height and self.y >= 0
+
+    def collision(self, obj):
+        return collide(obj, self) # see if the object collides with self
+
+
 #enemy
 
 class Enemy(Ship):
@@ -74,15 +139,18 @@ class Enemy(Ship):
                 "green": (spaceship_green, laser_green),
                 "blue": (spaceship_blue, laser_blue)
     }
-    def __init__(self, x, y, color, health=100):
-        super().__init__(x, y, health)
+    def __init__(self, x, y, color, hp=100):
+        super().__init__(x, y, hp)
         self.ship_img, self.laser_img = self.COLOR_MAP[color]
         self.mask = pygame.mask.from_surface(self.ship_img)
 
     def move(self, vel):
         self.y += vel
-
-
+# CHECK THIS IS RIGHT LOCATION
+    def collide(obj1, obj2):
+        offset_x = obj2.x - obj1.x # detects collison of pixels
+        offset_y = obj2.y - obj1.y
+        return obj1.mask.overlap(obj2.mask, (offset_x, offset_y)) != None
 
 # game loop
 def main():
@@ -98,6 +166,7 @@ def main():
     enemy_vel = 5
 
     player_vel = 5
+    laser_vel = 4
 
     player = Player(300,650)
 
@@ -166,9 +235,12 @@ def main():
             player.y -= player_vel
         if keys[pygame.K_DOWN] and player.y + player_vel + player.get_height() < HEIGHT:  # down
             player.y += player_vel
+        if key[pygame.K_SPACE]: # allows player to fire if spacebar is pressed
+            player.shoot() # calls method and creates laser
 
         for enemy in enemies[:]:
             enemy.move(enemy_vel)
+            enemy.move_laser(laser_vel, player)
             if enemy.y + enemy.get_height() > HEIGHT:
                 lives -= 1
                 enemies.remove(enemy)
