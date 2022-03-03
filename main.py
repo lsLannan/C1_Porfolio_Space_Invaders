@@ -86,8 +86,8 @@ class Player(Ship):
                 else:
                     for obj in objs:
                         if laser.collision(obj):
-                        objs.remove(obj)
-                        self.lasers.remove(laser)
+                            objs.remove(obj)
+                            self.lasers.remove(laser)
 
 
 # changed os.path.imag (?) to direct path for assests
